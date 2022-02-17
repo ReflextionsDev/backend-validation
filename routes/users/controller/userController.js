@@ -1,62 +1,58 @@
+const bcrypt = require("bcryptjs");
 const User = require("../model/User");
-
-const isLettersOnly = (str) => {
-    return !str.match(/[!`\-_=@#$%^&*()\[\],.?":;{}|<>1234567890]/g)
-}
-
-const isAlphaNumeric = (str) => {
-    return !str.match(/[!`\-_=@#$%^&*()\[\],.?":;{}|<>\s]/g)
-}
-
-const isValidEmailAddress = (str) => {
-    return str.match(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g)
-}
-
-const isValidPassWord = (str) => {
-    return str.match(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/g)
-}
 
 const createUser = async (req, res) => {
 
     try {
-
-        let letterValidationObj = {}
-        let errObj = {}
-
         const { firstName, lastName, username, email, password } = req.body
 
-        if (!isLettersOnly(firstName)) {
-            errObj.firstName = "first name should only have letters"
-        }
+        // bcrypt password
+        let salt = await bcrypt.genSalt(10)
+        let hashedPassword = await bcrypt.hash(password, salt)
 
-        if (!isLettersOnly(lastName)) {
-            errObj.lastName = "last name should only have letters"
-        }
+        let newUser = new User({
+            firstName: firstName,
+            lastName: lastName,
+            username: username,
+            email: email,
+            password: hashedPassword,
+        })
 
-        if (!isAlphaNumeric(username)) {
-            errObj.username = "username should not have special characters"
-        }
+        let savedUser = await newUser.save()
 
-        if (!isValidEmailAddress(email)) {
-            errObj.email = "email is invalid"
-        }
+        res
+            .status(200)
+            .json({ message: "New user has been saved", payload: savedUser })
 
-        if (!isValidPassWord(password)) {
-            errObj.password = `Password is invalid, must contain: at least 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, 1 special character`
-        }
+    } catch (error) {
 
-        if (Object.keys(errObj).length > 0) {
-            res.json(errObj)
+        console.log(error.keyValue)
+
+        let errorValue = Object.values(error.keyValue)
+
+        if (error.code === 11000) {
+            res.status(500).json({
+                message: `${errorValue} is already in use.`,
+                error: error
+            })
         } else {
-            res.status(200).json(req.body)
+            res.status(500).json(error)
         }
+    }
+}
 
+const userLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body
+        console.log(req.body)
+        res.send("hello from login")
     } catch (error) {
         res.status(500).json(error)
     }
-
 }
+
 
 module.exports = {
     createUser,
+    userLogin,
 }
